@@ -1,7 +1,7 @@
 module Main exposing (main)
 
 import Browser
-import Css exposing (width, height, rem, px, marginRight)
+import Css exposing (height, marginRight, paddingLeft, paddingRight, px, rem, width)
 import Html
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (class, css, disabled, type_, value)
@@ -29,7 +29,14 @@ type alias Model =
 
 
 type alias Todo =
-    String
+    { text : String
+    , state : State
+    }
+
+
+type State
+    = Init
+    | Completed
 
 
 init : Model
@@ -43,27 +50,42 @@ init =
 
 view : Model -> Html Msg
 view model =
+    let
+        initText =
+            Init |> stateToText
+
+        completedText =
+            Completed |> stateToText
+
+        options =
+            [ option [ value initText ] [ text initText ]
+            , option [ value completedText ] [ text completedText ]
+            ]
+    in
     div [ class "container" ]
-        [ div [ class "text-center" ]
-            [ h1 [] [ text "TODO APP" ]
+        [ div [ class "mx-auto" ]
+            [ h1 [ class "text-center" ] [ text "TODO APP" ]
             , div [ class "d-flex flex-row align-items-center justify-content-center mb-3" ]
                 [ input
                     [ type_ "text"
-                    , css [ marginRight (px 3), height (px 38) ]
+                    , css [ marginRight (px 5) ]
                     , value model.inputText
                     , onInput InputChange
+                    , class "form-control"
                     ]
                     []
                 , button
                     [ type_ "button"
+                    , css [ marginRight (px 5) ]
                     , class "btn btn-primary"
-                    , onClick Save
+                    , onClick Add
                     , disabled model.isButtonDisabled
                     ]
-                    [ text "Save" ]
+                    [ text "Add" ]
+                , select [ class "form-select" ] options
                 ]
+            , div [] (todosView model.todos)
             ]
-        , div [ class "mx-auto", css [ width (rem 30) ] ] (todosView model.todos)
         ]
 
 
@@ -72,20 +94,39 @@ todosView todos =
     let
         todoToView =
             \i todo ->
-                div [ class "input-group mb-3" ]
-                    [ input [ type_ "text", class "form-control", value todo ] []
+                let
+                    extraClass =
+                        case todo.state of
+                            Completed ->
+                                " border border-3 border-success"
+
+                            Init ->
+                                ""
+                in
+                div [ class "input-group mb-3 d-flex align-items-center justify-content-center" ]
+                    [ input
+                        [ type_ "text"
+                        , class ("form-control" ++ extraClass)
+                        , value todo.text
+                        ]
+                        []
                     , div [ class "input-group-append" ]
-                        [ button [ type_ "button", class "btn btn-success" ] [ text "Complete" ]
-                        , button [ type_ "button", class "btn btn-danger", onClick (Delete i) ] [ text "Delete" ]
+                        [ button
+                            [ type_ "button"
+                            , class "btn btn-success"
+                            , onClick (Complete i)
+                            ]
+                            [ text "Complete" ]
+                        , button
+                            [ type_ "button"
+                            , class "btn btn-danger"
+                            , onClick (Delete i)
+                            ]
+                            [ text "Delete" ]
                         ]
                     ]
     in
     List.indexedMap todoToView todos
-
-
-isStringEmpty : String -> Bool
-isStringEmpty string =
-    string |> String.trim |> String.isEmpty 
 
 
 
@@ -94,8 +135,9 @@ isStringEmpty string =
 
 type Msg
     = InputChange String
-    | Save
+    | Add
     | Delete Int
+    | Complete Int
 
 
 update : Msg -> Model -> Model
@@ -104,17 +146,31 @@ update msg model =
         InputChange inputText ->
             { model
                 | inputText = inputText
-                , isButtonDisabled = isStringEmpty inputText 
+                , isButtonDisabled = isStringEmpty inputText
             }
 
-        Save ->
-            { model | todos = List.append model.todos [ model.inputText ]
-                    , inputText = ""
-                    , isButtonDisabled = True
+        Add ->
+            { model
+                | todos = List.append model.todos [ { text = model.inputText, state = Init } ]
+                , inputText = ""
+                , isButtonDisabled = True
             }
 
-        Delete index ->
-            { model | todos = removeFromList index model.todos }
+        Delete i ->
+            { model | todos = removeFromList i model.todos }
+
+        Complete i ->
+            let
+                updateTodo : Int -> Todo -> Todo
+                updateTodo =
+                    \curIdx todo ->
+                        if curIdx == i then
+                            { todo | state = Completed }
+
+                        else
+                            todo
+            in
+            { model | todos = List.indexedMap updateTodo model.todos }
 
 
 
@@ -124,3 +180,27 @@ update msg model =
 removeFromList : Int -> List a -> List a
 removeFromList i xs =
     List.take i xs ++ List.drop (i + 1) xs
+
+
+isStringEmpty : String -> Bool
+isStringEmpty string =
+    string |> String.trim |> String.isEmpty
+
+
+stateToText : State -> String
+stateToText state =
+    case state of
+        Init ->
+            "Init"
+
+        Completed ->
+            "Completed"
+
+
+textToState : String -> State
+textToState string =
+    if string == "Init" then
+        Init
+
+    else
+        Completed
