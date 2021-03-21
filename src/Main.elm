@@ -8,6 +8,7 @@ import Html.Styled.Attributes exposing (class, css, disabled, type_, value)
 import Html.Styled.Events exposing (onClick, onInput)
 
 
+-- TODO: refactor select and change styling
 
 -- MAIN
 
@@ -31,6 +32,8 @@ type alias Model =
 type alias Todo =
     { text : String
     , state : State
+    , id : Int
+    , isShow : Bool
     }
 
 
@@ -58,7 +61,8 @@ view model =
             Completed |> stateToText
 
         options =
-            [ option [ value initText ] [ text initText ]
+            [ option [ value "All" ] [ text "All" ]
+            , option [ value initText ] [ text initText ]
             , option [ value completedText ] [ text completedText ]
             ]
     in
@@ -82,7 +86,7 @@ view model =
                     , disabled model.isButtonDisabled
                     ]
                     [ text "Add" ]
-                , select [ class "form-select" ] options
+                , select [ class "form-select", onInput Filter ] options
                 ]
             , div [] (todosView model.todos)
             ]
@@ -103,28 +107,32 @@ todosView todos =
                             Init ->
                                 ""
                 in
-                div [ class "input-group mb-3 d-flex align-items-center justify-content-center" ]
-                    [ input
-                        [ type_ "text"
-                        , class ("form-control" ++ extraClass)
-                        , value todo.text
-                        ]
-                        []
-                    , div [ class "input-group-append" ]
-                        [ button
-                            [ type_ "button"
-                            , class "btn btn-success"
-                            , onClick (Complete i)
+                if todo.isShow == True then
+                    div [ class "input-group mb-3 d-flex align-items-center justify-content-center" ]
+                        [ input
+                            [ type_ "text"
+                            , class ("form-control" ++ extraClass)
+                            , value todo.text
                             ]
-                            [ text "Complete" ]
-                        , button
-                            [ type_ "button"
-                            , class "btn btn-danger"
-                            , onClick (Delete i)
+                            []
+                        , div [ class "input-group-append" ]
+                            [ button
+                                [ type_ "button"
+                                , class "btn btn-success"
+                                , onClick (Complete i)
+                                ]
+                                [ text "Complete" ]
+                            , button
+                                [ type_ "button"
+                                , class "btn btn-danger"
+                                , onClick (Delete todo.id)
+                                ]
+                                [ text "Delete" ]
                             ]
-                            [ text "Delete" ]
                         ]
-                    ]
+
+                else
+                    div [] []
     in
     List.indexedMap todoToView todos
 
@@ -138,6 +146,7 @@ type Msg
     | Add
     | Delete Int
     | Complete Int
+    | Filter String
 
 
 update : Msg -> Model -> Model
@@ -150,36 +159,71 @@ update msg model =
             }
 
         Add ->
+            let
+                item =
+                    { text = model.inputText, state = Init, id = List.length model.todos, isShow = True } |> List.singleton
+
+                newTodos =
+                    List.append model.todos item
+            in
             { model
-                | todos = List.append model.todos [ { text = model.inputText, state = Init } ]
+                | todos = newTodos
                 , inputText = ""
                 , isButtonDisabled = True
             }
 
-        Delete i ->
-            { model | todos = removeFromList i model.todos }
+        Delete id ->
+            { model | todos = List.filter (\x -> x.id /= id) model.todos }
 
-        Complete i ->
+        Complete id ->
             let
-                updateTodo : Int -> Todo -> Todo
                 updateTodo =
-                    \curIdx todo ->
-                        if curIdx == i then
+                    \todo ->
+                        if todo.id == id then
                             { todo | state = Completed }
 
                         else
                             todo
             in
-            { model | todos = List.indexedMap updateTodo model.todos }
+            { model | todos = List.map updateTodo model.todos }
+
+        Filter mode ->
+            let
+                filterAll =
+                    \todo -> { todo | isShow = True }
+
+                filterInit =
+                    \todo ->
+                        if todo.state == Init then
+                            { todo | isShow = True }
+
+                        else
+                            { todo | isShow = False }
+
+                filterCompleted =
+                    \todo ->
+                        if todo.state == Completed then
+                            { todo | isShow = True }
+
+                        else
+                            { todo | isShow = False }
+            in
+            case mode of
+                "All" ->
+                    { model | todos = List.map filterAll model.todos }
+
+                "Init" ->
+                    { model | todos = List.map filterInit model.todos }
+
+                "Completed" ->
+                    { model | todos = List.map filterCompleted model.todos }
+
+                _ ->
+                    model
 
 
 
 -- UTIL
-
-
-removeFromList : Int -> List a -> List a
-removeFromList i xs =
-    List.take i xs ++ List.drop (i + 1) xs
 
 
 isStringEmpty : String -> Bool
