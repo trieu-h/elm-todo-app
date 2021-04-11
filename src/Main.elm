@@ -41,6 +41,30 @@ type State
     = Init
     | Completed
 
+type ShowState
+    = SInit
+    | SCompleted
+    | SAll
+
+showStateTuples: List (ShowState, String)
+showStateTuples =
+    [ (SInit, "Init"),
+      (SCompleted, "Completed"),
+      (SAll, "All")
+    ]
+
+stringToShowState: String -> ShowState
+stringToShowState str =
+    case str of
+     "Init" ->
+        SInit
+     "Completed" ->
+        SCompleted
+     "All" ->
+        SAll
+     _ ->
+        SAll
+
 
 init : Model
 init =
@@ -49,26 +73,15 @@ init =
 
 
 -- VIEW
-
-
 view : Model -> Html Msg
 view model =
     let
-        initText =
-            Init |> stateToText
-
-        completedText =
-            Completed |> stateToText
-
         options =
-            [ option [ value "All" ] [ text "All" ]
-            , option [ value initText ] [ text initText ]
-            , option [ value completedText ] [ text completedText ]
-            ]
+            List.map (\(_, str) -> option [value str] [text str]) showStateTuples
     in
     div [ class "container" ]
         [ div [ class "mx-auto" ]
-            [ h1 [ class "text-center" ] [ text "TODO APP" ]
+            [ h1 [ class "text-center" ] [ text "TODO" ]
             , div [ class "d-flex flex-row align-items-center justify-content-center mb-3" ]
                 [ input
                     [ type_ "text"
@@ -187,7 +200,7 @@ update msg model =
             in
             { model | todos = List.map updateTodo model.todos }
 
-        Filter mode ->
+        Filter option ->
             let
                 filterAll =
                     \todo -> { todo | isShow = True }
@@ -208,19 +221,15 @@ update msg model =
                         else
                             { todo | isShow = False }
             in
-            case mode of
-                "All" ->
-                    { model | todos = List.map filterAll model.todos }
-
-                "Init" ->
-                    { model | todos = List.map filterInit model.todos }
-
-                "Completed" ->
+            case option |> stringToShowState of
+                SCompleted ->
                     { model | todos = List.map filterCompleted model.todos }
 
-                _ ->
-                    model
+                SInit ->
+                    { model | todos = List.map filterInit model.todos }
 
+                SAll ->
+                    { model | todos = List.map filterAll model.todos }
 
 
 -- UTIL
@@ -229,22 +238,3 @@ update msg model =
 isStringEmpty : String -> Bool
 isStringEmpty string =
     string |> String.trim |> String.isEmpty
-
-
-stateToText : State -> String
-stateToText state =
-    case state of
-        Init ->
-            "Init"
-
-        Completed ->
-            "Completed"
-
-
-textToState : String -> State
-textToState string =
-    if string == "Init" then
-        Init
-
-    else
-        Completed
