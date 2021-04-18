@@ -41,29 +41,23 @@ type State
     = Init
     | Completed
 
-type ShowState
-    = SInit
-    | SCompleted
-    | SAll
-
-showStateTuples: List (ShowState, String)
-showStateTuples =
-    [ (SInit, "Init"),
-      (SCompleted, "Completed"),
-      (SAll, "All")
-    ]
-
-stringToShowState: String -> ShowState
-stringToShowState str =
+fromString: String -> Maybe State
+fromString str =
     case str of
      "Init" ->
-        SInit
+        Just Init
      "Completed" ->
-        SCompleted
-     "All" ->
-        SAll
+        Just Completed
      _ ->
-        SAll
+        Nothing
+
+toString: State -> String
+toString state =
+    case state of
+     Init ->
+        "Init"
+     Completed ->
+        "Completed"
 
 
 init : Model
@@ -71,13 +65,15 @@ init =
     Model "" [] True
 
 
-
 -- VIEW
 view : Model -> Html Msg
 view model =
     let
         options =
-            List.map (\(_, str) -> option [value str] [text str]) showStateTuples
+            List.map
+                (\str ->
+                    option [value (str |> toString)] [text (str |> toString)])
+                [Init, Completed]
     in
     div [ class "container" ]
         [ div [ class "mx-auto" ]
@@ -99,7 +95,9 @@ view model =
                     , disabled model.isButtonDisabled
                     ]
                     [ text "Add" ]
-                , select [ class "form-select", onInput Filter ] options
+                , select
+                    [ class "form-select", onInput Filter ]
+                    ((option [value ""] [text "Select"]) :: options)
                 ]
             , div [] (todosView model.todos)
             ]
@@ -221,14 +219,14 @@ update msg model =
                         else
                             { todo | isShow = False }
             in
-            case option |> stringToShowState of
-                SCompleted ->
-                    { model | todos = List.map filterCompleted model.todos }
+            case option |> fromString of
+                Just Completed ->
+                   { model | todos = List.map filterCompleted model.todos }
 
-                SInit ->
-                    { model | todos = List.map filterInit model.todos }
+                Just Init ->
+                   { model | todos = List.map filterInit model.todos }
 
-                SAll ->
+                Nothing ->
                     { model | todos = List.map filterAll model.todos }
 
 
